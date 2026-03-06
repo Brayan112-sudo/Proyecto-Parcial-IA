@@ -1,6 +1,6 @@
 import pygame;
 
-class Jugador(pygame.sprite.Sprite):
+class jugador(pygame.sprite.Sprite):
     def __init__(self, x, y, image, animaciones):
         super().__init__()
         self.image = pygame.Surface((40, 40))

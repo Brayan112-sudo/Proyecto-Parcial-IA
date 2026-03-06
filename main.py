@@ -1,6 +1,6 @@
 import pygame;
 import random;
-from jugador import Jugador
+from jugador import jugador
 from mapa import Mapa, generar_mundo
 
 pygame.init()
@@ -62,8 +62,7 @@ for i in range(8):
 
 
 # Crear jugador
-jugador = Jugador(x=20, y=10, image= animaciones[0], animaciones=animaciones)
-
+jugador = jugador(x=20, y=10, image= animaciones[0], animaciones=animaciones)
 
 # Ancho jugador
 with_jugador = 35
