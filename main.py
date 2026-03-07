@@ -3,6 +3,7 @@ import random;
 from jugador import jugador;
 from mapa import mapa, generar_mundo
 from enemigos import enemigo;
+from behavior_tree import Guardia;
 
 pygame.init()
 
@@ -20,7 +21,7 @@ fps = 60
 ventana = pygame.display.set_mode((ancho, alto))
 
 
-# GENERAR MAPA
+# Generar mapa
 
 mapa_datos, destino = generar_mundo(10)
 mapa = mapa(mapa_datos, [0,0])
@@ -28,26 +29,10 @@ mapa = mapa(mapa_datos, [0,0])
 pygame.display.set_caption("Sobrevive a los enemigos")
 
 
+
 # --- AQUÍ VA EL BLOQUE DE PRUEBA DE GREÑAS ---
 from behavior_tree import Guardia  # asegúrate de importar la clase
 
-# Crear dos Greñas
-Grena1 = Guardia("Greñas 1", 3)
-Grena2 = Guardia("Greñas 2", 3)
-
-print("Sin objetivo")
-Grena1.Actualizar()
-Grena2.Actualizar()
-
-print("Agregar objetivo")
-Grena1.Agregar_objetivo("Jugador")  # o tu objeto jugador real
-Grena2.Agregar_objetivo("Jugador")
-
-print("Actualizando")
-for i in range(8):
-    print("Ciclo:", i+1)
-    Grena1.Actualizar()
-    Grena2.Actualizar()
 
 # Animaciones del enemigo
 animaciones_grenas = []
@@ -57,11 +42,18 @@ for i in range(4):
     animaciones_grenas.append(img)
 
 # Crear enemigos
-enemigo1 = enemigo(500, 300, animaciones_grenas)
-enemigo2 = enemigo(200, 150, animaciones_grenas)
 
-enemigo1.jugador= jugador
-enemigo2.jugador= jugador
+# ------------------- PUNTOS DE PATRULLA -------------------
+puntos_patru = [(500,300),(700,300),(700,500),(500,500)]
+
+enemigo1 = enemigo(500, 300, animaciones_grenas, puntos_patru, mapa)
+enemigo2 = enemigo(200, 150, animaciones_grenas, puntos_patru, mapa)
+
+
+# ------------------- CREAR GUARDIAS (ÁRBOL DE COMPORTAMIENTO) -------------------
+Grena1 = Guardia(enemigo1, mapa, puntos_patru)
+Grena2 = Guardia(enemigo2, mapa, puntos_patru)
+
 
 # Controlar el frame rate
 reloj = pygame.time.Clock()
@@ -103,6 +95,9 @@ for i in range(8):
 
 # Crear jugador
 jugador = jugador(x=20, y=10, image= animaciones[0], animaciones=animaciones)
+
+enemigo1.jugador = jugador
+enemigo2.jugador = jugador
 
 # Ancho jugador
 with_jugador = 35
@@ -169,8 +164,11 @@ while correr:
        # Actualizar
        jugador.update()
 
-       enemigo1.perseguir(jugador, mapa)
-       enemigo2.perseguir(jugador, mapa)
+       # --- Actualizar enemigos usando el árbol ---
+       for guardia in [enemigo1, enemigo2]:
+        guardia.arbol.ejecutar()  # decide patrulla o persecución
+        guardia.update_animacion()        # animaciones
+        guardia.dibujar(ventana) 
 
        enemigo1.update()
        enemigo2.update()

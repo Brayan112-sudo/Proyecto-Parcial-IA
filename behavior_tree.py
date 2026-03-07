@@ -1,3 +1,5 @@
+
+
 class Nodo:
     def __init__(self):
         self.hijos = []
@@ -13,11 +15,7 @@ class Selector(Nodo):
             hijos = []
         self.hijos = hijos
 
-    def agregar_hijo(self, hijo):
-        self.hijos.append(hijo)
-
     def ejecutar(self):
-        # Devuelve True si algún hijo devuelve True
         for hijo in self.hijos:
             if hijo.ejecutar():
                 return True
@@ -25,12 +23,13 @@ class Selector(Nodo):
 
 
 class Secuencia(Nodo):
-    def __init__(self, hijos):
+    def __init__(self, hijos=None):
         super().__init__()
+        if hijos is None:
+            hijos = []
         self.hijos = hijos
 
     def ejecutar(self):
-        # Devuelve False si algún hijo devuelve False
         for hijo in self.hijos:
             if not hijo.ejecutar():
                 return False
@@ -38,9 +37,9 @@ class Secuencia(Nodo):
 
 
 class Accion(Nodo):
-    def __init__(self, accion):
+    def __init__(self, funcion):
         super().__init__()
-        self.accion = accion
+        self.accion = funcion
 
     def ejecutar(self):
         return self.accion()
@@ -62,102 +61,100 @@ class Timer(Nodo):
         self.tiempo_restante = tiempo
 
     def ejecutar(self):
-
         if self.tiempo_restante > 0:
             self.tiempo_restante -= 1
             return False
         else:
             self.tiempo_restante = self.tiempo
-            self.hijos[0].ejecutar()
+            if self.hijos:
+                self.hijos[0].ejecutar()
             return True
 
 
 class Guardia:
-
-    def __init__(self, nombre, tiempoAtacando):
-
-        self.nombre = nombre
+    def __init__(self, enemigo, mapa, puntos_patru, tiempoAtacando=120, rango_deteccion=200):
+        self.enemigo = enemigo
+        self.mapa = mapa
         self.objetivo = None
+        self.puntos_patru = puntos_patru
+        self.patru_index = 0
+        self.ruta_actual = []
+        self.tiempoAtacando = tiempoAtacando
+        self.rango_deteccion = rango_deteccion
 
-        self.comportamiento = Selector([])       # Selector vacío
-        secuenciaAtaque = Secuencia([])          # Secuencia de ataque vacía
-        secuenciaPatrulla = Secuencia([])        # Secuencia de patrulla vacía
+        # Árbol de comportamiento
+        self.comportamiento = Selector()
 
-        self.comportamiento.agregar_hijo(secuenciaAtaque)
-        self.comportamiento.agregar_hijo(secuenciaPatrulla)
+        # Secuencias
+        self.secuenciaReposo = Secuencia()
+        self.secuenciaAtaque = Secuencia()
+        self.secuenciaPatrulla = Secuencia()
 
+        # Agregar secuencias al selector
+        self.comportamiento.agregar_hijo(self.secuenciaReposo)
+        self.comportamiento.agregar_hijo(self.secuenciaAtaque)
+        self.comportamiento.agregar_hijo(self.secuenciaPatrulla)
+
+        # --- Reposo: cuando no hay objetivo ---
         hay_objetivo = Accion(lambda: self.objetivo is not None)
+        self.secuenciaReposo.agregar_hijo(Invertir(hay_objetivo))
+        self.secuenciaReposo.agregar_hijo(Accion(self.Reposo))
 
-        # ATAQUE
-        secuenciaAtaque.agregar_hijo(hay_objetivo)
-        secuenciaAtaque.agregar_hijo(Accion(self.objetivo_cerca))
-        secuenciaAtaque.agregar_hijo(Accion(self.atacar))
+        # --- Ataque: si hay objetivo y está cerca ---
+        self.secuenciaAtaque.agregar_hijo(Accion(self.objetivo_cerca))
+        self.secuenciaAtaque.agregar_hijo(Accion(self.atacar))
+        timer_ataque = Timer(tiempoAtacando)
+        timer_ataque.agregar_hijo(Accion(self.Desactivar_objetivo))
+        self.secuenciaAtaque.agregar_hijo(timer_ataque)
 
-        temporizador = Timer(tiempoAtacando)
-        temporizador.agregar_hijo(Accion(self.Desactivar_objetivo))
+        # --- Patrulla ---
+        self.secuenciaPatrulla.agregar_hijo(Accion(self.Patrullar))
 
-        secuenciaAtaque.agregar_hijo(temporizador)
-
-        # PATRULLA
-        secuenciaPatrulla.agregar_hijo(Invertir(hay_objetivo))
-        secuenciaPatrulla.agregar_hijo(Accion(self.Patrullar))
-
-    # =====================
-    # ACCIONES
-    # =====================
+    # ------------------ MÉTODOS ------------------
 
     def Agregar_objetivo(self, objetivo):
         self.objetivo = objetivo
-        print(self.nombre + ": Objetivo agregado " + objetivo)
 
     def Desactivar_objetivo(self):
-        print(self.nombre + ": Objetivo desactivado")
         self.objetivo = None
         return True
 
     def objetivo_cerca(self):
-        if self.objetivo is not None:
-            print(self.nombre + ": Objetivo cerca")
-            return True
+        if self.objetivo:
+            dx = self.objetivo.rect.centerx - self.enemigo.rect.centerx
+            dy = self.objetivo.rect.centery - self.enemigo.rect.centery
+            distancia = (dx**2 + dy**2)**0.5
+            return distancia <= self.rango_deteccion
         return False
 
     def atacar(self):
-        if self.objetivo is not None:
-            print(self.nombre + ": Atacando a " + self.objetivo)
-            return True
-        return False
+        if self.objetivo:
+            # Aquí puedes poner animación o lógica real de ataque
+            print(f"{self.enemigo.nombre} atacando al jugador!")
+        return True
+
+    def Reposo(self):
+        # Animación o lógica de espera
+        # Ejemplo: enemigo se queda quieto
+        return True
 
     def Patrullar(self):
-        print(self.nombre + ": Patrullando")
+        if not self.ruta_actual or self.enemigo.rect.topleft == self.ruta_actual[-1]:
+            siguiente_punto = self.puntos_patru[self.patru_index]
+            self.ruta_actual = (self.mapa, self.enemigo.rect.topleft, siguiente_punto)
+            self.patru_index = (self.patru_index + 1) % len(self.puntos_patru)
+
+        if self.ruta_actual:
+            paso = self.ruta_actual[0]
+            dx = paso[0] - self.enemigo.rect.x
+            dy = paso[1] - self.enemigo.rect.y
+            distancia = max(1, (dx**2 + dy**2)**0.5)
+            self.enemigo.rect.x += int(self.enemigo.velocidad * dx / distancia)
+            self.enemigo.rect.y += int(self.enemigo.velocidad * dy / distancia)
+
+            if abs(dx) + abs(dy) < 1:
+                self.ruta_actual.pop(0)
         return True
 
     def Actualizar(self):
         self.comportamiento.ejecutar()
-
-
-# Crear dos Greñas
-
-Grena1 = Guardia("Greñas 1", 3)
-Grena2 = Guardia("Greñas 2", 3)
-
-
-print("Sin objetivo")
-
-Grena1.Actualizar()
-Grena2.Actualizar()
-
-
-print("Agregar objetivo")
-
-Grena1.Agregar_objetivo("Jugador")
-Grena2.Agregar_objetivo("Jugador")
-
-
-print("Actualizando")
-
-for i in range(8):
-
-    print("Ciclo:", i+1)
-
-    Grena1.Actualizar()
-    Grena2.Actualizar()

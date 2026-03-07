@@ -4,12 +4,16 @@ from astar import Astar
 
 
 class enemigo(pygame.sprite.Sprite):
-    def __init__(self, x, y, animaciones):
+    def __init__(self, x, y, animaciones, puntos_patru, mapa):
         super().__init__()
+        self.mapa = mapa
 
         self.nombre = "Greñas"
-
         self.animaciones = animaciones
+        self.puntos_patru = puntos_patru
+        self.mapa = mapa
+        self.jugador = None
+        self.indice_patru = 0
         self.frame_index = 0
         self.image = self.animaciones[self.frame_index]
         self.update_time = pygame.time.get_ticks()
@@ -18,7 +22,7 @@ class enemigo(pygame.sprite.Sprite):
         self.velocidad = 2
         self.flip = False
 
-    # --- Inteligencia artificial ---
+        # Árbol de comportamiento
         self.arbol = Selector([
             Secuencia([
                 Accion(self.ver_jugador),
@@ -27,81 +31,73 @@ class enemigo(pygame.sprite.Sprite):
             Accion(self.patrullar)
         ])
 
+        # Patrulla
+        self.puntos_patru = puntos_patru
+        self.indice_patru = 0
+        self.camino_patru = []
+
+        # Caminos
+        self.camino = []
+
+        # Jugador (se asigna después)
+        self.jugador = None
+
     # --- Funciones del árbol ---
     def ver_jugador(self):
-        # Devuelve True si el jugador está cerca
-        distancia = abs(self.rect.x - self.jugador.rect.x)
-        return distancia < 200
+        if self.jugador is None:
+            return False
+        distancia = ((self.rect.centerx - self.jugador.rect.centerx)**2 +
+                    (self.rect.centery - self.jugador.rect.centery)**2)**0.5
+        return distancia > 200  # detecta jugador a 200 px
 
     def perseguir_jugador(self):
-        # Crear A* cada vez que se quiere perseguir
-        astar = Astar(self.rect.topleft, self.jugador.rect.topleft)
-        camino = astar.buscar() # Buscar ruta hacia el jugador
+        if self.jugador is None:
+           return False
 
-        if camino:
-            siguiente = camino[0]
-            self.rect.x = siguiente[0]
-            self.rect.y = siguiente[1]
+        if not self.camino:
+           self.camino = Astar(self.rect.topleft, self.jugador.rect.topleft).buscar()
+
+        # Guardar posición anterior por si hay colisión
+        paso_anterior = self.rect.topleft
+
+        # Movimiento paso a paso
+        if self.camino:
+            siguiente = self.camino.pop(0)
+            self.rect.topleft = siguiente
+            if not self.mapa.puede_moverse(self.rect):
+                self.rect.topleft = paso_anterior  # vuelve si choca
+
         return True
 
     def patrullar(self):
-        # Movimiento simple de patrullaje
-        self.rect.x += self.velocidad
+        mapa = self.mapa
+        # Generar camino hacia el siguiente punto si no existe
+        if not self.camino_patru:
+           destino = self.puntos_patru[self.indice_patru]
+           self.camino_patru = Astar(self.rect.topleft, destino).buscar()
+
+        paso_anterior = self.rect.topleft
+
+        if self.camino_patru:
+            siguiente = self.camino_patru.pop(0)
+            self.rect.topleft = siguiente
+            if not mapa.puede_moverse(self.rect):
+                self.rect.topleft = paso_anterior
+        else:
+            # Cambiar al siguiente punto de patrulla
+            self.indice_patru = (self.indice_patru + 1) % len(self.puntos_patru)
+
         return True
 
-
-
-    def perseguir(self, jugador, mapa):
-
-        dx = 0
-        dy = 0
-
-        # Comparar posiciones
-        if jugador.rect.x > self.rect.x:
-            dx = self.velocidad
-            self.flip = False
-        if jugador.rect.x < self.rect.x:
-            dx = -self.velocidad
-            self.flip = True
-
-        if jugador.rect.y > self.rect.y:
-            dy = self.velocidad
-        if jugador.rect.y < self.rect.y:
-            dy = -self.velocidad
-
-        # Movimiento X
-        self.rect.x += dx
-        if not mapa.puede_moverse(self.rect):
-            self.rect.x -= dx
-
-        # Movimiento Y
-        self.rect.y += dy
-        if not mapa.puede_moverse(self.rect):
-            self.rect.y -= dy
-
-        # Evita que salga del mapa
-        self.rect.x = max(0, min(self.rect.x, mapa.ancho_mundo - self.rect.width))
-        self.rect.y = max(0, min(self.rect.y, mapa.alto_mundo - self.rect.height))
-
-    def atacar(self, jugador):
-        if self.rect.colliderect(jugador.rect):
-            jugador.morir()
-
-
-    def update(self):
-        # Ejecuta árbol de comportamiento
-        self.arbol.ejecutar()
-
-
+    # --- Animación ---
+    def update_animacion(self):
         cooldown_animacion = 120
         if pygame.time.get_ticks() - self.update_time >= cooldown_animacion:
-            # Avanzar al siguiente frame de la animación
             self.frame_index = (self.frame_index + 1) % len(self.animaciones)
             self.image = self.animaciones[self.frame_index]
             self.update_time = pygame.time.get_ticks()
 
-
+    # --- Dibujar ---
     def dibujar(self, ventana):
         imagen_flip = pygame.transform.flip(self.image, self.flip, False)
         ventana.blit(imagen_flip, self.rect)
-        #pygame.draw.rect(interfaz, (255, 255, 0), self.rect, 1) # debug
