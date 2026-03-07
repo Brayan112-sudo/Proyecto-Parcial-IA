@@ -1,9 +1,14 @@
 import pygame;
 import random;
-from jugador import jugador
-from mapa import Mapa, generar_mundo
+from jugador import jugador;
+from mapa import mapa, generar_mundo
+from enemigos import enemigo;
 
 pygame.init()
+
+# Función para escalar la imagen del enemigo
+def escalar_img(image, width, height):
+    return pygame.transform.scale(image, (width, height))
 
 # Configuración
 ancho = 800
@@ -18,10 +23,45 @@ ventana = pygame.display.set_mode((ancho, alto))
 # GENERAR MAPA
 
 mapa_datos, destino = generar_mundo(10)
-mapa = Mapa(mapa_datos, [0,0])
+mapa = mapa(mapa_datos, [0,0])
 
 pygame.display.set_caption("Sobrevive a los enemigos")
 
+
+# --- AQUÍ VA EL BLOQUE DE PRUEBA DE GREÑAS ---
+from behavior_tree import Guardia  # asegúrate de importar la clase
+
+# Crear dos Greñas
+Grena1 = Guardia("Greñas 1", 3)
+Grena2 = Guardia("Greñas 2", 3)
+
+print("Sin objetivo")
+Grena1.Actualizar()
+Grena2.Actualizar()
+
+print("Agregar objetivo")
+Grena1.Agregar_objetivo("Jugador")  # o tu objeto jugador real
+Grena2.Agregar_objetivo("Jugador")
+
+print("Actualizando")
+for i in range(8):
+    print("Ciclo:", i+1)
+    Grena1.Actualizar()
+    Grena2.Actualizar()
+
+# Animaciones del enemigo
+animaciones_grenas = []
+for i in range(4):
+    img = pygame.image.load(f"assets//images//characters//enemies//greñas//Greñas_{i}.png").convert_alpha()
+    img = escalar_img(img, 35, 45)
+    animaciones_grenas.append(img)
+
+# Crear enemigos
+enemigo1 = enemigo(500, 300, animaciones_grenas)
+enemigo2 = enemigo(200, 150, animaciones_grenas)
+
+enemigo1.jugador= jugador
+enemigo2.jugador= jugador
 
 # Controlar el frame rate
 reloj = pygame.time.Clock()
@@ -87,11 +127,16 @@ while correr:
        # Dibujar ventana
        ventana.fill((30, 30, 30))
 
-        # Dibujar mapa
+       # Dibujar
        mapa.dibujar(ventana)
 
-        # Dibujar
+       # Dibujar enemigos
+       enemigo1.dibujar(ventana)
+       enemigo2.dibujar(ventana)
+
+       # Dibujar jugador
        jugador.dibujar(ventana)
+
 
 
        # Calcular el movimiento del jugador
@@ -109,7 +154,7 @@ while correr:
        if mover_abajo == True:
               delta_y = velocidad = 3
 
-        # Guardar posición anterior
+       # Guardar posición anterior
        posicion_anterior = jugador.rect.copy()
 
 
@@ -120,8 +165,16 @@ while correr:
        if not mapa.puede_moverse(jugador.rect):
         jugador.rect = posicion_anterior
 
-
+       
+       # Actualizar
        jugador.update()
+
+       enemigo1.perseguir(jugador, mapa)
+       enemigo2.perseguir(jugador, mapa)
+
+       enemigo1.update()
+       enemigo2.update()
+
 
        
        # Eventos

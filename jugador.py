@@ -77,3 +77,6 @@ class jugador(pygame.sprite.Sprite):
         imagen_flip = pygame.transform.flip(self.image, self.flip, flip_y=False)
         interfaz.blit(imagen_flip, self.rect)
         #pygame.draw.rect(interfaz, (255, 255, 0), self.rect, 1) # debug
+
+    def morir(self):
+      print("El jugador ha muerto")

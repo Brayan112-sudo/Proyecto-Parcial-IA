@@ -3,13 +3,12 @@ import random;
 
 
 # Clase mapa
-class Mapa:
+class mapa:
     def __init__(self,configuracion,cordenadas):
         self.configuracion = configuracion
         self.cordenadas = cordenadas
         self.tamano = len(configuracion)
 
-    def dibujar(self, ventana):
         self.tamano_celda = 90
 
         # 0 = suelo
@@ -30,6 +29,10 @@ class Mapa:
         [1,4,3,0,2,0,3,4,0,1]
         ]
 
+        self.ancho_mundo = len(self.mapa[0]) * self.tamano_celda
+        self.alto_mundo = len(self.mapa) * self.tamano_celda
+
+    def dibujar(self, ventana):
         for fila in range(len(self.mapa)):
             for columna in range(len(self.mapa[fila])):
 
@@ -114,12 +117,12 @@ class Mapa:
                 if x>=0 and x<self.tamano and y>=0 and y<self.tamano:
                     if self.configuracion[x][y]!=1:
                         nueva_configuracion=self.configuracion.copy()
-                        sucesores.append(Mapa(nueva_configuracion,[x,y]))
+                        sucesores.append(mapa(nueva_configuracion,[x,y]))
                     
             return sucesores
     
     def __eq__(self, __o: object) -> bool:
-        if isinstance(__o, Mapa):
+        if isinstance(__o, mapa):
             return self.cordenadas==__o.cordenadas
         return self.cordenadas==__o
 
