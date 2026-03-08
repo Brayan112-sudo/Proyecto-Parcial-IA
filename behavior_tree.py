@@ -2,7 +2,7 @@ import pygame
 from astar import Astar, Estado
 
 TAMANO_CELDA    = 47
-RANGO_DETECTAR  = 200   # px — activa la persecución
+RANGO_DETECTAR  = 200   # Esto activa la persecución una vez que ven al jugador
 
 class Nodo:
     def __init__(self):
@@ -174,7 +174,8 @@ class Guardia:
 
         destino = self.puntos_patru[self.patru_index]
 
-        # Si no hay ruta hacia el punto de patrulla, calcularla con A*
+        # Si no hay ruta hacia el punto de patrulla, calcular con A*
+
         if not self.ruta_patru:
             inicio = Estado(
                 self.enemigo.rect.centerx // TAMANO_CELDA,
@@ -189,6 +190,7 @@ class Guardia:
                 self.ruta_patru.pop(0)
 
         # Seguir la ruta A*
+
         if self.ruta_patru:
             dest_px, dest_py = self.ruta_patru[0]
             dx = dest_px - self.enemigo.rect.centerx
@@ -206,6 +208,7 @@ class Guardia:
                     self.ruta_patru = []
                 self.enemigo.flip = dx < 0
         else:
+            
             # Llegó al punto, avanzar al siguiente
             self.patru_index = (self.patru_index + 1) % len(self.puntos_patru)
             self.ruta_patru = []

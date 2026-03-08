@@ -1,6 +1,9 @@
 import pygame
 from collections import deque
 
+# Brayan Obed Solano Febles
+# Matrícula= 23-SISN-2-005
+
 
 TAMANO_CELDA = 47
 

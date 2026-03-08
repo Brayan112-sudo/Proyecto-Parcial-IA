@@ -15,7 +15,9 @@ def ruido_px(seed, i, j, escala=8):
     random.seed(seed + i * 73 + j * 37)
     return random.randint(-escala, escala)
 
-# ── SUELO (tipo 0) ─────────────────────────────────────────────────
+
+# Suelo tipo 0
+
 def tile_suelo():
     s = pygame.Surface((TILE, TILE))
     base = (52, 48, 42)
@@ -34,7 +36,9 @@ def tile_suelo():
         pygame.draw.line(s, (30, 28, 25), (x1, y1), (x2, y2), 1)
     return s
 
-# ── EDIFICIO DESTRUIDO (tipo 1) — CON COLISIÓN ────────────────────
+
+# Edificio destruido tipo 1 — colisión
+
 def tile_edificio():
     s = pygame.Surface((TILE, TILE))
     s.fill((55, 52, 48))
@@ -62,7 +66,9 @@ def tile_edificio():
     pygame.draw.rect(s, (20, 18, 15), (0, 0, TILE, TILE), 2)
     return s
 
-# ── CALLE (tipo 3) ─────────────────────────────────────────────────
+
+# Calle tipo 3
+
 def tile_calle():
     s = pygame.Surface((TILE, TILE))
     base = (38, 36, 34)
@@ -81,7 +87,9 @@ def tile_calle():
         pygame.draw.ellipse(s, (25, 22, 20), (ox, oy, 18, 10))
     return s
 
-# ── ÁRBOL SECO (tipo 2) — CON COLISIÓN ────────────────────────────
+
+# Árbol seco tipo 2 — Colisión
+
 def tile_arbol():
     s = pygame.Surface((TILE, TILE))
     base = (52, 48, 42)
@@ -113,7 +121,9 @@ def tile_arbol():
         pygame.draw.line(s, (45, 30, 18), (x2, y2), (x2-dx//3, y2-6), 1)
     return s
 
-# ── RUINAS (tipo 4) — CON COLISIÓN ────────────────────────────────
+
+# Ruinas tipo 4 — Colisión
+
 def tile_ruinas():
     s = pygame.Surface((TILE, TILE))
     s.fill((58, 50, 40))
