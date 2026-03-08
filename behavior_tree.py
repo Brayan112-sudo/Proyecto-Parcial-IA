@@ -1,4 +1,8 @@
+import pygame
+from astar import Astar, Estado
 
+TAMANO_CELDA    = 47
+RANGO_DETECTAR  = 200   # px — activa la persecución
 
 class Nodo:
     def __init__(self):
@@ -72,88 +76,140 @@ class Timer(Nodo):
 
 
 class Guardia:
-    def __init__(self, enemigo, mapa, puntos_patru, tiempoAtacando=120, rango_deteccion=200):
-        self.enemigo = enemigo
-        self.mapa = mapa
-        self.objetivo = None
-        self.puntos_patru = puntos_patru
-        self.patru_index = 0
-        self.ruta_actual = []
-        self.tiempoAtacando = tiempoAtacando
+    def __init__(self, enemigo, mapa, puntos_patru, rango_deteccion=RANGO_DETECTAR):
+        self.enemigo         = enemigo
+        self.mapa            = mapa
+        self.jugador         = None
+        self.alertado        = False
+        self.puntos_patru    = puntos_patru
+        self.patru_index     = 0
+        self.ruta_actual     = []
+        self.ruta_patru      = []
+        self.tiempo_ruta     = 0
         self.rango_deteccion = rango_deteccion
 
-        # Árbol de comportamiento
-        self.comportamiento = Selector()
-
-        # Secuencias
-        self.secuenciaReposo = Secuencia()
+        self.comportamiento  = Selector()
         self.secuenciaAtaque = Secuencia()
-        self.secuenciaPatrulla = Secuencia()
+        self.secuenciaPatru  = Secuencia()
 
-        # Agregar secuencias al selector
-        self.comportamiento.agregar_hijo(self.secuenciaReposo)
         self.comportamiento.agregar_hijo(self.secuenciaAtaque)
-        self.comportamiento.agregar_hijo(self.secuenciaPatrulla)
+        self.comportamiento.agregar_hijo(self.secuenciaPatru)
 
-        # --- Reposo: cuando no hay objetivo ---
-        hay_objetivo = Accion(lambda: self.objetivo is not None)
-        self.secuenciaReposo.agregar_hijo(Invertir(hay_objetivo))
-        self.secuenciaReposo.agregar_hijo(Accion(self.Reposo))
-
-        # --- Ataque: si hay objetivo y está cerca ---
-        self.secuenciaAtaque.agregar_hijo(Accion(self.objetivo_cerca))
+        self.secuenciaAtaque.agregar_hijo(Accion(self.detectar_jugador))
         self.secuenciaAtaque.agregar_hijo(Accion(self.atacar))
-        timer_ataque = Timer(tiempoAtacando)
-        timer_ataque.agregar_hijo(Accion(self.Desactivar_objetivo))
-        self.secuenciaAtaque.agregar_hijo(timer_ataque)
 
-        # --- Patrulla ---
-        self.secuenciaPatrulla.agregar_hijo(Accion(self.Patrullar))
+        self.secuenciaPatru.agregar_hijo(Accion(self.Patrullar))
 
-    # ------------------ MÉTODOS ------------------
+        self.arbol = self.comportamiento
 
-    def Agregar_objetivo(self, objetivo):
-        self.objetivo = objetivo
+    def Agregar_objetivo(self, jugador):
+        self.jugador = jugador
+        self.enemigo.jugador = jugador
 
-    def Desactivar_objetivo(self):
-        self.objetivo = None
-        return True
+    def _distancia_jugador(self):
+        if self.jugador is None:
+            return float("inf")
+        dx = self.jugador.rect.centerx - self.enemigo.rect.centerx
+        dy = self.jugador.rect.centery - self.enemigo.rect.centery
+        return (dx**2 + dy**2) ** 0.5
 
-    def objetivo_cerca(self):
-        if self.objetivo:
-            dx = self.objetivo.rect.centerx - self.enemigo.rect.centerx
-            dy = self.objetivo.rect.centery - self.enemigo.rect.centery
-            distancia = (dx**2 + dy**2)**0.5
-            return distancia <= self.rango_deteccion
-        return False
+    def detectar_jugador(self):
+        """Activa alerta si el jugador entra al rango; una vez alertado, persigue para siempre."""
+        if self.jugador is None:
+            return False
+
+        distancia = self._distancia_jugador()
+
+        if distancia <= self.rango_deteccion:
+            self.alertado = True
+
+        return self.alertado
 
     def atacar(self):
-        if self.objetivo:
-            # Aquí puedes poner animación o lógica real de ataque
-            print(f"{self.enemigo.nombre} atacando al jugador!")
-        return True
+        if self.jugador is None:
+            return False
 
-    def Reposo(self):
-        # Animación o lógica de espera
-        # Ejemplo: enemigo se queda quieto
+        ahora          = pygame.time.get_ticks()
+        ruta_vacia     = len(self.ruta_actual) == 0
+        tiempo_vencido = (ahora - self.tiempo_ruta) > 400
+
+        if ruta_vacia or tiempo_vencido:
+            inicio = Estado(
+                self.enemigo.rect.centerx // TAMANO_CELDA,
+                self.enemigo.rect.centery // TAMANO_CELDA
+            )
+            final = Estado(
+                self.jugador.rect.centerx // TAMANO_CELDA,
+                self.jugador.rect.centery // TAMANO_CELDA
+            )
+            nueva = Astar(inicio, final, mapa=self.mapa, tam_celda=TAMANO_CELDA).buscar()
+            if nueva:
+                self.ruta_actual = nueva
+                self.tiempo_ruta = ahora
+                if self.ruta_actual:
+                    self.ruta_actual.pop(0)
+
+        if self.ruta_actual:
+            destino_px, destino_py = self.ruta_actual[0]
+            dx = destino_px - self.enemigo.rect.centerx
+            dy = destino_py - self.enemigo.rect.centery
+            distancia = max(1, (dx**2 + dy**2) ** 0.5)
+
+            if distancia < self.enemigo.velocidad + 1:
+                self.ruta_actual.pop(0)
+            else:
+                paso_anterior = self.enemigo.rect.topleft
+                self.enemigo.rect.x += int(self.enemigo.velocidad * dx / distancia)
+                self.enemigo.rect.y += int(self.enemigo.velocidad * dy / distancia)
+                if not self.mapa.puede_moverse(self.enemigo.rect):
+                    self.enemigo.rect.topleft = paso_anterior
+                    self.ruta_actual = []
+                self.enemigo.flip = dx < 0
+
         return True
 
     def Patrullar(self):
-        if not self.ruta_actual or self.enemigo.rect.topleft == self.ruta_actual[-1]:
-            siguiente_punto = self.puntos_patru[self.patru_index]
-            self.ruta_actual = (self.mapa, self.enemigo.rect.topleft, siguiente_punto)
+        if not self.puntos_patru:
+            return False
+
+        destino = self.puntos_patru[self.patru_index]
+
+        # Si no hay ruta hacia el punto de patrulla, calcularla con A*
+        if not self.ruta_patru:
+            inicio = Estado(
+                self.enemigo.rect.centerx // TAMANO_CELDA,
+                self.enemigo.rect.centery // TAMANO_CELDA
+            )
+            final = Estado(
+                destino[0] // TAMANO_CELDA,
+                destino[1] // TAMANO_CELDA
+            )
+            self.ruta_patru = Astar(inicio, final, mapa=self.mapa, tam_celda=TAMANO_CELDA).buscar()
+            if self.ruta_patru:
+                self.ruta_patru.pop(0)
+
+        # Seguir la ruta A*
+        if self.ruta_patru:
+            dest_px, dest_py = self.ruta_patru[0]
+            dx = dest_px - self.enemigo.rect.centerx
+            dy = dest_py - self.enemigo.rect.centery
+            distancia = max(1, (dx**2 + dy**2) ** 0.5)
+
+            if distancia < self.enemigo.velocidad + 1:
+                self.ruta_patru.pop(0)
+            else:
+                paso_anterior = self.enemigo.rect.topleft
+                self.enemigo.rect.x += int(self.enemigo.velocidad * dx / distancia)
+                self.enemigo.rect.y += int(self.enemigo.velocidad * dy / distancia)
+                if not self.mapa.puede_moverse(self.enemigo.rect):
+                    self.enemigo.rect.topleft = paso_anterior
+                    self.ruta_patru = []
+                self.enemigo.flip = dx < 0
+        else:
+            # Llegó al punto, avanzar al siguiente
             self.patru_index = (self.patru_index + 1) % len(self.puntos_patru)
+            self.ruta_patru = []
 
-        if self.ruta_actual:
-            paso = self.ruta_actual[0]
-            dx = paso[0] - self.enemigo.rect.x
-            dy = paso[1] - self.enemigo.rect.y
-            distancia = max(1, (dx**2 + dy**2)**0.5)
-            self.enemigo.rect.x += int(self.enemigo.velocidad * dx / distancia)
-            self.enemigo.rect.y += int(self.enemigo.velocidad * dy / distancia)
-
-            if abs(dx) + abs(dy) < 1:
-                self.ruta_actual.pop(0)
         return True
 
     def Actualizar(self):

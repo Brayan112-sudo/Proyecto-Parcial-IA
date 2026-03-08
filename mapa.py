@@ -1,170 +1,181 @@
-import pygame;
-import random;
+import pygame
+import random
+import os
 
 
-# Clase mapa
 class mapa:
-    def __init__(self,configuracion,cordenadas):
+    def __init__(self, configuracion, cordenadas):
         self.configuracion = configuracion
         self.cordenadas = cordenadas
         self.tamano = len(configuracion)
+        self.tamano_celda = 47
 
-        self.tamano_celda = 90
+        # 0 = suelo       (transitable)
+        # 1 = edificio    (COLISIÓN)
+        # 2 = árbol seco  (COLISIÓN)
+        # 3 = calle       (transitable)
+        # 4 = ruinas      (COLISIÓN)
+        # "E" = meta      (transitable, roja)
 
-        # 0 = suelo
-        # 1 = edificio destruido
-        # 2 = árbol seco
-        # 3 = calle
-        # 4 = ruinas
-
+        # Mapa ampliado: 29 columnas x 16 filas = 1363 x 752 px (~fullscreen 1366x768)
         self.mapa = [
-        [0,0,3,3,3,0,3,3,3,0],
-        [1,1,3,3,3,1,1,3,3,1],
-        [1,4,3,0,0,3,4,3,0,1],
-        [3,3,3,0,2,0,3,3,3,3],
-        [3,0,0,0,0,0,0,0,0,3],
-        [1,3,0,2,0,2,0,3,1,3],
-        [1,3,0,0,4,0,0,3,1,3],
-        [3,3,3,0,0,0,3,3,3,3],
-        [1,4,3,0,2,0,3,4,0,1]
+            [0, 0, 3, 3, 3, 0, 3, 3, 3, 0, 0, 0, 0, 3, 3, 3, 3, 0, 3, 3, 0, 0, 3, 3, 3, 0, 0, 3, 0],
+            [0, 3, 3, 0, 0, 2, 3, 1, 3, 0, 1, 3, 0, 4, 3, 2, 0, 1, 3, 0, 2, 3, 1, 0, 3, 1, 0, 2, 0],
+            [0, 0, 3, 4, 0, 1, 4, 3, 0, 3, 4, 0, 1, 0, 3, 0, 0, 4, 0, 3, 0, 1, 0, 3, 4, 0, 1, 0, 3],
+            [3, 3, 3, 0, 2, 0, 3, 3, 2, 3, 1, 0, 3, 3, 2, 3, 0, 3, 2, 0, 3, 3, 2, 3, 1, 0, 3, 3, 0],
+            [3, 0, 2, 0, 1, 0, 4, 0, 2, 3, 1, 0, 0, 0, 2, 3, 3, 0, 1, 0, 2, 0, 1, 3, 4, 0, 2, 0, 3],
+            [0, 3, 0, 2, 0, 2, 0, 1, 3, 0, 4, 0, 3, 3, 4, 0, 3, 2, 0, 1, 0, 2, 0, 0, 1, 3, 0, 2, 0],
+            [3, 3, 1, 0, 4, 0, 0, 3, 1, 0, 3, 3, 0, 0, 4, 3, 0, 0, 3, 0, 4, 3, 1, 0, 4, 0, 3, 1, 0],
+            [0, 3, 4, 0, 0, 1, 3, 4, 3, 3, 0, 4, 3, 0, 1, 2, 0, 3, 0, 4, 0, 1, 3, 4, 3, 0, 0, 4, 0],
+            [0, 0, 3, 0, 0, 0, 3, 3, 0, 3, 0, 3, 0, 3, 0, 0, 3, 0, 3, 0, 3, 3, 0, 3, 0, 3, 0, 0, 3],
+            [3, 0, 1, 2, 0, 3, 1, 0, 3, 0, 1, 0, 4, 0, 3, 1, 0, 3, 1, 0, 0, 3, 1, 0, 3, 0, 4, 3, 0],
+            [0, 3, 3, 0, 1, 0, 3, 3, 1, 3, 4, 3, 0, 1, 0, 3, 3, 0, 3, 3, 1, 0, 3, 3, 0, 1, 0, 3, 3],
+            [3, 1, 0, 3, 0, 2, 0, 1, 0, 3, 0, 1, 3, 0, 3, 0, 1, 2, 0, 1, 0, 3, 0, 1, 3, 0, 3, 0, 1],
+            [0, 3, 3, 1, 0, 0, 3, 3, 4, 0, 3, 0, 0, 3, 1, 3, 0, 0, 3, 3, 4, 0, 3, 0, 0, 3, 1, 3, 0],
+            [3, 0, 1, 0, 3, 3, 1, 0, 3, 3, 0, 3, 1, 0, 3, 0, 3, 3, 0, 1, 0, 3, 3, 1, 0, 3, 0, 0, 3],
+            [0, 3, 0, 3, 1, 0, 3, 3, 0, 1, 3, 0, 3, 3, 0, 3, 1, 0, 3, 0, 3, 1, 0, 3, 3, 0, 3, 1, 0],
+            [3, 3, 3, 0, 3, 3, 0, 3, 3, 3, 0, 3, 0, 3, 3, 3, 0, 3, 3, 3, 0, 3, 3, 0, 3, 3, 3, 0, "E"],
         ]
 
-        self.ancho_mundo = len(self.mapa[0]) * self.tamano_celda
-        self.alto_mundo = len(self.mapa) * self.tamano_celda
+        self.ancho_mundo = len(self.mapa[0]) * self.tamano_celda   # 29 * 47 = 1363
+        self.alto_mundo  = len(self.mapa)    * self.tamano_celda   # 16 * 47 = 752
+
+        self.BLOQUEANTES = {1, 2, 4}
+
+        self._tiles = self._cargar_tiles()
+
+    def _cargar_tiles(self):
+        ruta = os.path.join("assets", "images", "tiles")
+        nombres = {
+            0: "suelo",
+            1: "edificio",
+            2: "arbol",
+            3: "calle",
+            4: "ruinas",
+        }
+        tiles = {}
+        for tipo, nombre in nombres.items():
+            path = os.path.join(ruta, f"{nombre}.png")
+            if os.path.exists(path):
+                img = pygame.image.load(path).convert_alpha()
+                tiles[tipo] = pygame.transform.scale(img, (self.tamano_celda, self.tamano_celda))
+            else:
+                fallback = pygame.Surface((self.tamano_celda, self.tamano_celda))
+                colores_fallback = {
+                    0: (101, 67, 33),
+                    1: (60, 60, 60),
+                    2: (120, 100, 60),
+                    3: (40, 40, 40),
+                    4: (90, 80, 70),
+                }
+                fallback.fill(colores_fallback.get(tipo, (100, 100, 100)))
+                tiles[tipo] = fallback
+
+        # Tile de meta
+        meta = pygame.Surface((self.tamano_celda, self.tamano_celda))
+        meta.fill((180, 20, 20))
+        pygame.draw.rect(meta, (220, 40, 40), (4, 4, self.tamano_celda - 8, self.tamano_celda - 8))
+        font = pygame.font.SysFont(None, 24)
+        texto = font.render("META", True, (255, 255, 255))
+        meta.blit(texto, (self.tamano_celda // 2 - texto.get_width() // 2,
+                          self.tamano_celda // 2 - texto.get_height() // 2))
+        pygame.draw.rect(meta, (255, 80, 80), (0, 0, self.tamano_celda, self.tamano_celda), 3)
+        tiles["E"] = meta
+
+        return tiles
 
     def dibujar(self, ventana):
         for fila in range(len(self.mapa)):
             for columna in range(len(self.mapa[fila])):
-
                 x = columna * self.tamano_celda
-                y = fila * self.tamano_celda
-
+                y = fila    * self.tamano_celda
                 tipo = self.mapa[fila][columna]
 
-                # Suelo marrón sucio
-                if tipo == 0:
-                    color = (101, 67, 33)
+                tile = self._tiles.get(tipo)
+                if tile:
+                    ventana.blit(tile, (x, y))
 
-                # Edificio destruido
-                elif tipo == 1:
-                    color = (60, 60, 60)
-
-                # Inicio
-                elif tipo == "S":
-                    color = (0, 200, 0)
-
-                # Destino
-                elif tipo == "E":
-                    color = (200, 0, 0)
-
-                # Árbol seco
-                elif tipo == 2:
-                    color = (120, 100, 60)
-
-                # Calle
-                elif tipo == 3:
-                    color = (40, 40, 40)
-
-                # Ruinas
-                elif tipo == 4:
-                    color = (90, 80, 70)
-
-                pygame.draw.rect(ventana, color, (x, y, self.tamano_celda, self.tamano_celda))
-
-
-                # Detalles visuales
-        if tipo == 1:
-            pygame.draw.rect(ventana, (30,30,30), (x+10,y+10,20,20))
-            pygame.draw.rect(ventana, (20,20,20), (x+40,y+40,20,20))
-
-        if tipo == 2:
-            pygame.draw.line(ventana,(80,60,40),(x+40,y+20),(x+40,y+60),4)
-            pygame.draw.line(ventana,(80,60,40),(x+40,y+30),(x+25,y+45),3)
-            pygame.draw.line(ventana,(80,60,40),(x+40,y+30),(x+55,y+45),3)
-
-        if tipo == 4:
-            pygame.draw.circle(ventana,(70,70,70),(x+20,y+40),10)
-            pygame.draw.circle(ventana,(70,70,70),(x+50,y+30),8)
-
+                if tipo == "E":
+                    pulso = abs((pygame.time.get_ticks() % 1000) - 500) / 500
+                    alpha = int(60 + pulso * 120)
+                    brillo = pygame.Surface((self.tamano_celda, self.tamano_celda), pygame.SRCALPHA)
+                    brillo.fill((255, 100, 100, alpha))
+                    ventana.blit(brillo, (x, y))
 
     def puede_moverse(self, rect):
-
-        columna = rect.centerx // self.tamano_celda
-        fila = rect.centery // self.tamano_celda
-
-        if fila < 0 or fila >= len(self.mapa):
-            return False
-        if columna < 0 or columna >= len(self.mapa[0]):
-            return False
-
-        tipo = self.mapa[fila][columna]
-
-        # Bloques que NO se pueden atravesar
-        if tipo == 1 or tipo == 2 or tipo == 4:
-            return False
-
+        puntos = [
+            (rect.left  + 2, rect.top    + 2),
+            (rect.right - 2, rect.top    + 2),
+            (rect.left  + 2, rect.bottom - 2),
+            (rect.right - 2, rect.bottom - 2),
+        ]
+        for px, py in puntos:
+            columna = px // self.tamano_celda
+            fila    = py // self.tamano_celda
+            if fila < 0 or fila >= len(self.mapa):
+                return False
+            if columna < 0 or columna >= len(self.mapa[0]):
+                return False
+            if self.mapa[fila][columna] in self.BLOQUEANTES:
+                return False
         return True
 
+    def jugador_llego_a_meta(self, rect):
+        columna = rect.centerx // self.tamano_celda
+        fila    = rect.centery // self.tamano_celda
+        if 0 <= fila < len(self.mapa) and 0 <= columna < len(self.mapa[0]):
+            return self.mapa[fila][columna] == "E"
+        return False
 
     def GenerarSucesores(self):
-            sucesores = []
-            movimientos_validos = [[0,1],[1,0],[0,-1],[-1,0]]
+        sucesores = []
+        for dx, dy in [(0,1),(1,0),(0,-1),(-1,0)]:
+            x = self.cordenadas[0] + dx
+            y = self.cordenadas[1] + dy
+            if 0 <= x < self.tamano and 0 <= y < self.tamano:
+                if self.configuracion[x][y] not in (1, 2, 4):
+                    nueva = self.configuracion.copy()
+                    sucesores.append(mapa(nueva, [x, y]))
+        return sucesores
 
-            for movimiento in movimientos_validos:
-                x = self.cordenadas [0] + movimiento [0]
-                y = self.cordenadas [1] + movimiento [1]
+    def __eq__(self, otro):
+        if isinstance(otro, mapa):
+            return self.cordenadas == otro.cordenadas
+        return self.cordenadas == otro
 
-                if x>=0 and x<self.tamano and y>=0 and y<self.tamano:
-                    if self.configuracion[x][y]!=1:
-                        nueva_configuracion=self.configuracion.copy()
-                        sucesores.append(mapa(nueva_configuracion,[x,y]))
-                    
-            return sucesores
-    
-    def __eq__(self, __o: object) -> bool:
-        if isinstance(__o, mapa):
-            return self.cordenadas==__o.cordenadas
-        return self.cordenadas==__o
-
-    def __hash__(self) -> int:
-        return hash(str(self.configuracion))
+    def __hash__(self):
+        return hash(str(self.cordenadas))
 
     def __str__(self):
-        mapa_string = ""
-
+        resultado = ""
         for i, fila in enumerate(self.configuracion):
-            for j, elemento in enumerate(fila):
-                if i == self.cordenadas[0] and j == self.cordenadas[1] and elemento != "E" and elemento != "S":
-
-                    mapa_string += "* "
+            for j, elem in enumerate(fila):
+                if i == self.cordenadas[0] and j == self.cordenadas[1] and elem not in ("E","S"):
+                    resultado += "* "
                 else:
-                    mapa_string += str(elemento) + " "
-            mapa_string += "\n"
-        return mapa_string
+                    resultado += str(elem) + " "
+            resultado += "\n"
+        return resultado
 
-    def Costo(self,estado_final):
-        return abs(self.cordenadas[0]-estado_final.cordenadas[0]) + \
-               abs(self.cordenadas[1]-estado_final.cordenadas[1])
+    def Costo(self, estado_final):
+        return (abs(self.cordenadas[0] - estado_final.cordenadas[0]) +
+                abs(self.cordenadas[1] - estado_final.cordenadas[1]))
 
 
-# =========================
-# GENERAR MUNDO
-# =========================
+# ── GENERAR MUNDO ─────────────────────────────────────────────────────────────
 
 def generar_mundo(n):
-    mapa = [[0 for _ in range(n)] for _ in range(n)]
-    mapa[0][0] = "S"
+    mapa_datos = [[0 for _ in range(n)] for _ in range(n)]
+    mapa_datos[0][0] = "S"
 
     destino = [random.randint(1, n-1), random.randint(1, n-1)]
-    mapa[destino[0]][destino[1]] = "E"
+    mapa_datos[destino[0]][destino[1]] = "E"
 
     for i in range(n):
         for j in range(n):
-            if mapa[i][j] in ["S", "E"]:
-                continue
-            if i ==destino[0] and j == destino[1]:
+            if mapa_datos[i][j] in ("S", "E"):
                 continue
             if random.random() < 0.1:
-                mapa[i][j] = 1
+                mapa_datos[i][j] = 1
 
-    return mapa, destino
+    return mapa_datos, destino
