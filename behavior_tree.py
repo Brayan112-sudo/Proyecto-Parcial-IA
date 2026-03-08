@@ -114,7 +114,7 @@ class Guardia:
         return (dx**2 + dy**2) ** 0.5
 
     def detectar_jugador(self):
-        """Activa alerta si el jugador entra al rango; una vez alertado, persigue para siempre."""
+
         if self.jugador is None:
             return False
 
