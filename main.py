@@ -129,7 +129,7 @@ def nueva_partida():
 
     # Cambia este número para ajustar la velocidad de todos los enemigos ──
     for g in guardias:
-        g.enemigo.velocidad = 4
+        g.enemigo.velocidad = 5
 
     return mapa_obj, jugador_obj, guardias
 

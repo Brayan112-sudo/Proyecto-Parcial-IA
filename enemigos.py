@@ -21,7 +21,7 @@ class enemigo(pygame.sprite.Sprite):
         self.update_time = pygame.time.get_ticks()
         self.rect = self.image.get_rect(topleft=(x, y))
 
-        self.velocidad = 4
+        self.velocidad = 5
         self.flip = False
 
     def update_animacion(self):
