@@ -2,7 +2,9 @@ import pygame
 from astar import Astar, Estado
 
 TAMANO_CELDA    = 47
-RANGO_DETECTAR  = 200   # Esto activa la persecución una vez que ven al jugador
+RANGO_DETECTAR  = 200
+RANGO_PERDER    = 350   # distancia a la que pierde al jugador
+TIEMPO_ESPERA   = 2000  # ms quieto antes de reanudar patrulla
 
 class Nodo:
     def __init__(self):
@@ -88,16 +90,31 @@ class Guardia:
         self.tiempo_ruta     = 0
         self.rango_deteccion = rango_deteccion
 
+        # ── Estados del ciclo patrulla/persecución ──
+        # "patrullando" | "persiguiendo" | "esperando"
+        self.estado          = "patrullando"
+        self.timer_espera    = 0   # marca de tiempo cuando entró en "esperando"
+
         self.comportamiento  = Selector()
         self.secuenciaAtaque = Secuencia()
         self.secuenciaPatru  = Secuencia()
+        # ── Secuencia de espera (perdió al jugador) ──
+        self.secuenciaEspera = Secuencia()
 
+        # Orden del Selector: espera → ataque → patrulla
+        self.comportamiento.agregar_hijo(self.secuenciaEspera)
         self.comportamiento.agregar_hijo(self.secuenciaAtaque)
         self.comportamiento.agregar_hijo(self.secuenciaPatru)
 
+        # Espera: solo se activa si está en estado "esperando"
+        self.secuenciaEspera.agregar_hijo(Accion(self.esta_esperando))
+        self.secuenciaEspera.agregar_hijo(Accion(self.esperar))
+
+        # Ataque: detecta → persigue
         self.secuenciaAtaque.agregar_hijo(Accion(self.detectar_jugador))
         self.secuenciaAtaque.agregar_hijo(Accion(self.atacar))
 
+        # Patrulla: movimiento entre puntos
         self.secuenciaPatru.agregar_hijo(Accion(self.Patrullar))
 
         self.arbol = self.comportamiento
@@ -113,15 +130,38 @@ class Guardia:
         dy = self.jugador.rect.centery - self.enemigo.rect.centery
         return (dx**2 + dy**2) ** 0.5
 
-    def detectar_jugador(self):
+    # ── Nuevo: condición para la secuencia de espera ──
+    def esta_esperando(self):
+        return self.estado == "esperando"
 
+    # ── Nuevo: lógica de espera antes de retomar patrulla ──
+    def esperar(self):
+        ahora = pygame.time.get_ticks()
+        if ahora - self.timer_espera >= TIEMPO_ESPERA:
+            # Terminó la espera → reanudar patrulla
+            self.estado    = "patrullando"
+            self.alertado  = False
+            self.ruta_patru = []   # recalcular ruta al próximo punto
+        return True   # mientras espera, bloquea ataque y patrulla
+
+    def detectar_jugador(self):
         if self.jugador is None:
             return False
 
         distancia = self._distancia_jugador()
 
+        # Detecta al jugador → persiguiendo
         if distancia <= self.rango_deteccion:
             self.alertado = True
+            self.estado   = "persiguiendo"
+
+        # ── Nuevo: pierde al jugador → esperando ──
+        if self.alertado and distancia > RANGO_PERDER:
+            self.alertado     = False
+            self.estado       = "esperando"
+            self.timer_espera = pygame.time.get_ticks()
+            self.ruta_actual  = []
+            return False   # corta la secuencia de ataque
 
         return self.alertado
 
@@ -174,8 +214,6 @@ class Guardia:
 
         destino = self.puntos_patru[self.patru_index]
 
-        # Si no hay ruta hacia el punto de patrulla, calcular con A*
-
         if not self.ruta_patru:
             inicio = Estado(
                 self.enemigo.rect.centerx // TAMANO_CELDA,
@@ -188,8 +226,6 @@ class Guardia:
             self.ruta_patru = Astar(inicio, final, mapa=self.mapa, tam_celda=TAMANO_CELDA).buscar()
             if self.ruta_patru:
                 self.ruta_patru.pop(0)
-
-        # Seguir la ruta A*
 
         if self.ruta_patru:
             dest_px, dest_py = self.ruta_patru[0]
@@ -208,10 +244,9 @@ class Guardia:
                     self.ruta_patru = []
                 self.enemigo.flip = dx < 0
         else:
-            
             # Llegó al punto, avanzar al siguiente
             self.patru_index = (self.patru_index + 1) % len(self.puntos_patru)
-            self.ruta_patru = []
+            self.ruta_patru  = []
 
         return True
 

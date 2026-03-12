@@ -17,20 +17,16 @@ ventana = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 ancho = ventana.get_width()
 alto  = ventana.get_height()
 
-
 pygame.display.set_caption("Sobrevive a los enemigos")
 
 reloj = pygame.time.Clock()
 
-
 # Cargar animaciones
-
 animaciones_grenas = []
 for i in range(4):
     img = pygame.image.load(f"assets//images//characters//enemies//grenas//Grenas_{i}.png").convert_alpha()
     img = escalar_img(img, 35, 45)
     animaciones_grenas.append(img)
-
 
 animaciones_jugador = []
 for i in range(8):
@@ -38,9 +34,7 @@ for i in range(8):
     img = escalar_img(img, 35, 45)
     animaciones_jugador.append(img)
 
-
 # Cargar sonidos globales
-
 musica_fondo     = "assets/sounds/musica_motivacion_game.wav"
 sonido_meta      = pygame.mixer.Sound("assets/sounds/meta.wav")
 sonido_pasos_z   = pygame.mixer.Sound("assets/sounds/pasos_zombie.wav")
@@ -52,44 +46,37 @@ sonido_pasos_z.set_volume(0.4)
 sonido_gruñido_z.set_volume(0.6)
 sonido_ataque_z.set_volume(0.8)
 
-
 # Temporizadores de sonido para enemigos compartidos
-
 tiempo_ultimo_paso_z   = 0
 tiempo_ultimo_gruñido  = 0
 intervalo_pasos_z      = 400   # ms
 intervalo_gruñido      = 3000  # ms
 
+# ── Nuevo: evita que el sonido de ataque se dispare cada frame ──
+tiempo_ultimo_ataque   = 0
+intervalo_ataque       = 600   # ms entre cada golpe
 
 pantalla_completa = True
-meta_sonada       = False   # El sonido de meta suena una vez
-
+meta_sonada       = False
 
 # Estados del juego
-
 ESTADO_MENU     = "menu"
 ESTADO_JUGANDO  = "jugando"
 ESTADO_GANASTE  = "ganaste"
 ESTADO_PERDISTE = "perdiste"
 
-
-# Función para iniciar música de fondo
-
 def iniciar_musica():
     pygame.mixer.music.load(musica_fondo)
     pygame.mixer.music.set_volume(0.4)
-    pygame.mixer.music.play(-1)  # -1 = loop infinito
-
+    pygame.mixer.music.play(-1)
 
 def detener_musica():
     pygame.mixer.music.stop()
 
-
-# Función nueva
-def spawn_enemigos(posiciones, animaciones, mapa_obj, jugador_obj, puntos_patru):
-
+def spawn_enemigos(posiciones_con_rutas, animaciones, mapa_obj, jugador_obj):
+    
     guardias = []
-    for (x, y) in posiciones:
+    for (x, y), puntos_patru in posiciones_con_rutas:
         en = enemigo(x, y, animaciones, mapa_obj)
         en.jugador = jugador_obj
         g = Guardia(en, mapa_obj, puntos_patru)
@@ -98,36 +85,35 @@ def spawn_enemigos(posiciones, animaciones, mapa_obj, jugador_obj, puntos_patru)
     return guardias
 
 
-# Función para crear una partida nueva
-
 def nueva_partida():
-    global meta_sonada, tiempo_ultimo_paso_z, tiempo_ultimo_gruñido
-    meta_sonada             = False
-    tiempo_ultimo_paso_z    = 0
-    tiempo_ultimo_gruñido   = 0
+    global meta_sonada, tiempo_ultimo_paso_z, tiempo_ultimo_gruñido, tiempo_ultimo_ataque
+    meta_sonada           = False
+    tiempo_ultimo_paso_z  = 0
+    tiempo_ultimo_gruñido = 0
+    tiempo_ultimo_ataque  = 0
 
     mapa_datos, destino = generar_mundo(10)
     mapa_obj = mapa(mapa_datos, [0, 0])
 
     jugador_obj = jugador(x=23, y=23, image=animaciones_jugador[0], animaciones=animaciones_jugador)
 
-    puntos_patru = [(70, 164), (305, 164), (305, 352), (70, 352)]
-
-    # Agrega o quita posiciones aquí para tener más o menos enemigos ──
-    posiciones_enemigos = [
-        (446, 305),
-        (540, 164),
-        (164, 352),
-        (150, 250),
-        (300, 450),
-        (550, 425),
-        (370, 600),
-        (260, 650),
+    # Cada entrada: ( (spawn_x, spawn_y), [punto_a, punto_b, ...] )
+    # Ajusta las coordenadas de patrulla según tu mapa
+    
+    posiciones_con_rutas = [
+        ((446, 305), [(350, 305), (550, 305)]),   # patrulla horizontal
+        ((540, 164), [(540, 100), (540, 280)]),   # patrulla vertical
+        ((164, 352), [(80,  352), (280, 352)]),   # patrulla horizontal
+        ((150, 250), [(150, 160), (150, 380)]),   # patrulla vertical
+        ((300, 450), [(200, 450), (420, 450)]),   # patrulla horizontal
+        ((550, 425), [(460, 425), (620, 425)]),   # patrulla horizontal
+        ((370, 600), [(280, 600), (460, 600)]),   # patrulla horizontal
+        ((260, 650), [(180, 650), (360, 650)]),   # patrulla horizontal
     ]
 
-    guardias = spawn_enemigos(posiciones_enemigos, animaciones_grenas, mapa_obj, jugador_obj, puntos_patru)
+    guardias = spawn_enemigos(posiciones_con_rutas, animaciones_grenas, mapa_obj, jugador_obj)
 
-    # Cambia este número para ajustar la velocidad de todos los enemigos ──
+    # Cambia este número para ajustar la velocidad de todos los enemigos
     for g in guardias:
         g.enemigo.velocidad = 5
 
@@ -135,7 +121,6 @@ def nueva_partida():
 
 
 # Botón reutilizable
-
 class Boton:
     def __init__(self, texto, x, y, w, h, color, color_hover, color_texto=(255,255,255)):
         self.texto       = texto
@@ -166,8 +151,6 @@ class Boton:
         return False
 
 
-# Dibujar fondo de menú
-
 def dibujar_fondo_menu(ventana, ancho, alto, titulo, subtitulo="", color_titulo=(220,50,50)):
     ventana.fill((15, 15, 20))
     for i in range(0, alto, 4):
@@ -190,8 +173,6 @@ def dibujar_fondo_menu(ventana, ancho, alto, titulo, subtitulo="", color_titulo=
         ventana.blit(sub_surf, (ancho // 2 - sub_surf.get_width() // 2, alto // 4 + 85))
 
 
-# Crear botones
-
 def crear_botones_menu(ancho, alto):
     bw, bh = 280, 55
     cx = ancho // 2 - bw // 2
@@ -208,12 +189,12 @@ def crear_botones_fin(ancho, alto):
 
 
 # Estado inicial
-
 estado = ESTADO_MENU
 mapa_obj, jugador_obj, guardias = None, None, []
-meta_sonada = False
+meta_sonada          = False
 tiempo_ultimo_paso_z  = 0
 tiempo_ultimo_gruñido = 0
+tiempo_ultimo_ataque  = 0
 
 btn_iniciar, btn_salir      = crear_botones_menu(ancho, alto)
 btn_reiniciar, btn_menu_fin = crear_botones_fin(ancho, alto)
@@ -225,9 +206,7 @@ while run:
 
     reloj.tick(fps)
 
-
     # Menú principal
-
     if estado == ESTADO_MENU:
         dibujar_fondo_menu(ventana, ancho, alto, "SOBREVIVE", "Llega a la META sin que te atrapen")
         btn_iniciar.dibujar(ventana)
@@ -244,9 +223,7 @@ while run:
             if btn_salir.fue_clickeado(event):
                 run = False
 
-
     # Jugando
-
     elif estado == ESTADO_JUGANDO:
         ventana.fill((30, 30, 30))
         mapa_obj.dibujar(ventana)
@@ -263,20 +240,16 @@ while run:
         jugador_obj.movimiento(delta_x, delta_y, ancho, alto, mapa_obj)
         jugador_obj.update()
         jugador_obj.dibujar(ventana)
-        jugador_obj.dibujar_barra_vida(ventana)  # Barra de vida
-
+        jugador_obj.dibujar_barra_vida(ventana)
 
         # Meta
-
         if mapa_obj.jugador_llego_a_meta(jugador_obj.rect):
             if not meta_sonada:
                 sonido_meta.play()
                 meta_sonada = True
             estado = ESTADO_GANASTE
 
-
-        # Sonidos de enemigos para todos
-
+        # Sonidos de enemigos
         ahora = pygame.time.get_ticks()
 
         enemigos_activos = [g.enemigo for g in guardias]
@@ -286,33 +259,28 @@ while run:
             for e in enemigos_activos
         )
 
-        # Pasos zombie
-
         if ahora - tiempo_ultimo_paso_z >= intervalo_pasos_z:
             sonido_pasos_z.play()
             tiempo_ultimo_paso_z = ahora
-
-
-        # Gruñido zombie
 
         if hay_enemigo_cerca and ahora - tiempo_ultimo_gruñido >= intervalo_gruñido:
             sonido_gruñido_z.play()
             tiempo_ultimo_gruñido = ahora
 
-
         # Guardias
-
         for guardia in guardias:
             guardia.arbol.ejecutar()
             guardia.enemigo.update_animacion()
             guardia.enemigo.dibujar(ventana)
 
+            # ── Colisión con cooldown para no spamear el sonido ni el daño ──
             if guardia.enemigo.rect.colliderect(jugador_obj.rect):
-                sonido_ataque_z.play()          # sonido de ataque al golpear
-                jugador_obj.recibir_daño(10)
-                if jugador_obj.vida <= 0:
-                    estado = ESTADO_PERDISTE
-
+                if ahora - tiempo_ultimo_ataque >= intervalo_ataque:
+                    sonido_ataque_z.play()
+                    jugador_obj.recibir_daño(10)
+                    tiempo_ultimo_ataque = ahora
+                    if jugador_obj.vida <= 0:
+                        estado = ESTADO_PERDISTE
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -330,7 +298,6 @@ while run:
                     btn_reiniciar, btn_menu_fin = crear_botones_fin(ancho, alto)
 
     # Ganaste
-
     elif estado == ESTADO_GANASTE:
         dibujar_fondo_menu(ventana, ancho, alto, "¡GANASTE!", "Llegaste a la META", color_titulo=(50,200,80))
         btn_reiniciar.dibujar(ventana)
@@ -346,7 +313,6 @@ while run:
                 estado = ESTADO_MENU
 
     # Perdiste
-
     elif estado == ESTADO_PERDISTE:
         dibujar_fondo_menu(ventana, ancho, alto, "¡PERDISTE!", "Un enemigo te atrapó", color_titulo=(200,50,50))
         btn_reiniciar.dibujar(ventana)
@@ -362,6 +328,5 @@ while run:
                 estado = ESTADO_MENU
 
     pygame.display.update()
-
 
 pygame.quit()
