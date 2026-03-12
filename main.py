@@ -85,6 +85,19 @@ def detener_musica():
     pygame.mixer.music.stop()
 
 
+# Función nueva
+def spawn_enemigos(posiciones, animaciones, mapa_obj, jugador_obj, puntos_patru):
+
+    guardias = []
+    for (x, y) in posiciones:
+        en = enemigo(x, y, animaciones, mapa_obj)
+        en.jugador = jugador_obj
+        g = Guardia(en, mapa_obj, puntos_patru)
+        g.Agregar_objetivo(jugador_obj)
+        guardias.append(g)
+    return guardias
+
+
 # Función para crear una partida nueva
 
 def nueva_partida():
@@ -98,23 +111,27 @@ def nueva_partida():
 
     jugador_obj = jugador(x=23, y=23, image=animaciones_jugador[0], animaciones=animaciones_jugador)
 
-    en1 = enemigo(446, 305, animaciones_grenas, mapa_obj)
-    en2 = enemigo(540, 164, animaciones_grenas, mapa_obj)
-    en3 = enemigo(164, 352, animaciones_grenas, mapa_obj)
-
     puntos_patru = [(70, 164), (305, 164), (305, 352), (70, 352)]
-    g1 = Guardia(en1, mapa_obj, puntos_patru)
-    g2 = Guardia(en2, mapa_obj, puntos_patru)
-    g3 = Guardia(en3, mapa_obj, puntos_patru)
 
-    en1.jugador = jugador_obj
-    en2.jugador = jugador_obj
-    en3.jugador = jugador_obj
-    g1.Agregar_objetivo(jugador_obj)
-    g2.Agregar_objetivo(jugador_obj)
-    g3.Agregar_objetivo(jugador_obj)
+    # Agrega o quita posiciones aquí para tener más o menos enemigos ──
+    posiciones_enemigos = [
+        (446, 305),
+        (540, 164),
+        (164, 352),
+        (150, 250),
+        (300, 450),
+        (550, 425),
+        (370, 600),
+        (260, 650),
+    ]
 
-    return mapa_obj, jugador_obj, [g1, g2, g3]
+    guardias = spawn_enemigos(posiciones_enemigos, animaciones_grenas, mapa_obj, jugador_obj, puntos_patru)
+
+    # Cambia este número para ajustar la velocidad de todos los enemigos ──
+    for g in guardias:
+        g.enemigo.velocidad = 4
+
+    return mapa_obj, jugador_obj, guardias
 
 
 # Botón reutilizable
